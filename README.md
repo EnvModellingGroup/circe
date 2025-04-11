@@ -13,12 +13,22 @@ on an enormous loom, but later drugs them so that they change shape.
 However, this model is set up to run tidal, storm or tsunami
 simulations. To get started you'll need some data and a mesh.
 
-The input folder contains all input files; bathymetry, mesh, etc
-
-The data folder contains any other data needed for your
+ - The input folder contains all input files; bathymetry, mesh, etc
+ - The data folder contains any other data needed for your
 model, including tidal gauges, for example
-
-The sims folder contain all your model simulations.
-
-the scripts folder contains a bunch of generic processing
+ - The sims folder contain all your model simulations.
+ - The scripts folder contains a bunch of generic processing
 and analysis scripts.
+
+To use this, fork this repository on GitHub (or the command line and set your
+upstream correctly). You can then set options in the sim/global\_options.py
+file, such as your bathymetry data, mesh file, time step etc, as well as which 
+processes you want to enable.
+
+If you want to create a suite of runs, then copy the base\_case
+directory and in the params.py file there, edit any parameters from the global\_params.py
+you wish to change.
+Alternatively, use the command line option --param to set a name-value pair. 
+
+We have exposed the parameters most users may wish to change so the main cerci.py
+script should not need to be altered unless you know what you are doing.
