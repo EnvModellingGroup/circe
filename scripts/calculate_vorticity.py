@@ -7,14 +7,9 @@ import csv
 from mpi4py import MPI
 import gc
 from firedrake.petsc import PETSc
-
 petsc_options = PETSc.Options()
 petsc_options["options_left"] = False
 
-# run like:
-#
-#mpiexec -n 5 python calculate_vorticity.py ../sims/modern/output/hdf5/ test.csv -v
-#
 
 def main():
 
@@ -23,9 +18,9 @@ def main():
          description="""Will calculate L2 norm of vorticity from a h5 file"""
     )
     parser.add_argument(
-            'input_dir',
-            metavar='input_dir',
-            help='The directory where the velocity (uv) h5 files are'
+            'input',
+            metavar='input',
+            help='The directory/file where the velocity (uv) h5 files are/is'
             )
     parser.add_argument(
             '-v',
@@ -46,13 +41,13 @@ def main():
             help='The output PVD without extension. The vtu/pvtus will be created magically.'
             )
     parser.add_argument(
-            "csv_output",
-            metavar="csv_output",
-            help="A csv file to store the time indeces and L2 norms"
+            "--csv",
+            metavar="csv",
+            help="A csv file to store the time indeces and L2 norms. Directory only."
             )
     args = parser.parse_args()
     verbose = args.verbose
-    input_dir = args.input_dir
+    inputdata = args.input
     output_file = args.output_file
     csv_output = args.csv_output
     start_from = args.start_from
@@ -64,22 +59,27 @@ def main():
     if output_file != None:
         output = True
     
-    # get list of velocity h5 files
-    h5_files = sorted(glob.glob(input_dir + '/Velocity2d*.h5'))
-    if (rank == 0):
-        # if file does not exist, open and write the headers
-        if os.path.exists(csv_output):
-                csvfile = open(csv_output, 'a', newline='')
-                writer = csv.writer(csvfile, delimiter=',',
-                                    quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        else:
-                csvfile = open(csv_output, 'w', newline='')
-                writer = csv.writer(csvfile, delimiter=',',
-                                    quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                writer.writerow(["Index","L2_norm"])
+    isdir = False
+    if (os.path.isdir(inputdata):
+        isdir = True
+        # get list of velocity h5 files
+        h5_files = sorted(glob.glob(inputdata + '/Velocity2d*.h5'))
+        if (rank == 0):
+            # if file does not exist, open and write the headers
+            if os.path.exists(csv_output):
+                    csvfile = open(csv_output, 'a', newline='')
+                    writer = csv.writer(csvfile, delimiter=',',
+                                        quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            else:
+                    csvfile = open(csv_output, 'w', newline='')
+                    writer = csv.writer(csvfile, delimiter=',',
+                                        quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                    writer.writerow(["Index","L2_norm"])
+    else:
+        # single file
+        h5_files = [inputdata]
     
     for input_file in h5_files:
-
 
         # work out the number of the output
         head, tail = os.path.split(input_file)    
@@ -123,7 +123,7 @@ def main():
                 e = exporter.VTKExporter(visu_space, "vorticity", outputdir, outputfile, next_export_ix=int(timestep))
                 e.set_next_export_ix(int(timestep))
                 e.export(vorticity)
-            if (rank == 0):
+            if (isdir and rank == 0):
                 writer.writerow([str(timestep), str(L2_norm)])
                 csvfile.flush()
 
@@ -132,8 +132,6 @@ def main():
             gc.collect()
             del(L2_norm)
 
-
-            
 
 if __name__ == "__main__":
     main()
