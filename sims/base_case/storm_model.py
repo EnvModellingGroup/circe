@@ -5,19 +5,19 @@ import tidal_forcing_tpxo as tidal_forcing
 import sys
 import os.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
-import params
+import global_params_storm
 import utm
 import atmospheric_forcing
 
 #timestepping options
-dt = 180 # reduce if solver does not converge
-t_export = params.output_time
-t_end = params.end_time
-output_dir = params.output_dir
-utm_zone = params.utm_zone
-utm_band=params.utm_band
-cent_lat = params.cent_lat
-cent_lon = params.cent_lon
+dt = global_params_storm.time_step # reduce if solver does not converge
+t_export = global_params_storm.output_time
+t_end = global_params_storm.end_time
+output_dir = global_params_storm.output_dir
+utm_zone = global_params_storm.utm_zone
+utm_band=global_params_storm.utm_band
+cent_lat = global_params_storm.cent_lat
+cent_lon = global_params_storm.cent_lon
 
 # read bathymetry code
 chk = CheckpointFile('bathymetry.h5', 'r')
@@ -43,7 +43,7 @@ def coriolis(mesh, lat, lon):
     f0 = 2 * Omega * sin(lat_r)
     beta = (1 / R) * 2 * Omega * cos(lat_r)
     x = SpatialCoordinate(mesh)
-    x_0, y_0, utm_zone, zone_letter = params.from_latlon(lat, lon)
+    x_0, y_0, utm_zone, zone_letter = global_params_storm.from_latlon(lat, lon)
     coriolis_2d = Function(FunctionSpace(mesh, 'CG', 1), name="coriolis_2d")
     coriolis_2d.interpolate(f0 + beta * (x[1] - y_0))
 
@@ -64,7 +64,7 @@ pressure_file = File(outputdir + '/pressure.pvd')
 
 coord_system = coordsys.UTMCoordinateSystem(utm_zone=30, south=True)
 start_datetime = datetime.datetime(2020,2,14,0,0,0,tzinfo=sim_tz)
-era5_file = "storm_dennis.nc"
+era5_file = global_params_storm.era5_file
 forcing = atmospheric_forcing.ERA5Interpolator(CG_2d,tau,pressure,coord_system, era5_file, start_datetime)
 forcing.set_fields(t_start)
 
@@ -86,8 +86,8 @@ options.horizontal_viscosity = h_viscosity #the viscosity 'cushion' we created i
 options.coriolis_frequency = coriolis_2d
 options.timestep = dt
 options.use_automatic_wetting_and_drying_alpha = True
-options.wetting_and_drying_alpha_min = Constant(0.1)
-options.wetting_and_drying_alpha_max = Constant(75.0)
+options.wetting_and_drying_alpha_min = global_params_storm.alpha_min
+options.wetting_and_drying_alpha_max = global_params_storm.alpha_max
 options.use_wetting_and_drying = True
 options.element_family = "dg-dg"
 options.swe_timestepper_type = 'DIRK22'
@@ -106,7 +106,7 @@ options.swe_timestepper_options.solver_parameters = {
 tidal_elev = Function(bathymetry2d.function_space())
 solverObj.bnd_functions['shallow_water'] = {
     #set open boundaries to tidal_elev function
-    params.forcing_boundary: {'elev': tidal_elev},
+    global_params_storm.forcing_boundary: {'elev': tidal_elev},
     #set closed boundaries to zero velocity
     1000: {'un': 0.0},
 }

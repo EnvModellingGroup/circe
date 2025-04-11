@@ -15,3 +15,14 @@ output_time = 900
 constituents = ['M2', 'S2', 'N2', 'K2', 'K1', 'O1', 'P1', 'Q1', 'M4']
 # year, month, day, hour, min, sec
 start_datetime = datetime.datetime(2000,1,1,0,0,0) 
+
+
+#from storm model.py
+time_step = 180 # reduce if solver does not converge
+alpha_min = Constant(0.1)
+alpha_max = Constant(75.0)
+
+
+##coord_system = coordsys.UTMCoordinateSystem(utm_zone=30, south=True) #I want to put this in but utm_zone already above?? whats the difference and do we want these in params?
+##tart_datetime = datetime.datetime(2020,2,14,0,0,0,tzinfo=sim_tz) #again, different to above?
+era5_file = "storm_dennis.nc"
