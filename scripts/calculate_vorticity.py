@@ -1,11 +1,13 @@
-from thetis import *
 import os.path
 import argparse
 import re
 import glob
 import csv
-from mpi4py import MPI
 import gc
+from thetis import exporter, Function, diagnostics
+from thetis import CheckpointFile, FunctionSpace
+from thetis import sqrt, assemble, inner, dx
+from mpi4py import MPI
 from firedrake.petsc import PETSc
 petsc_options = PETSc.Options()
 petsc_options["options_left"] = False
@@ -33,7 +35,8 @@ def main():
             "--start_from",
             default=0,
             type=int,
-            help="continue from a previous run from this hdf5 file number. Data will be appended to the output_file"
+            help="continue from a previous run from this hdf5 file \
+                  number. Data will be appended to the output_file"
             )
     parser.add_argument(
             '--output_file',
@@ -53,36 +56,35 @@ def main():
     start_from = args.start_from
 
     rank = MPI.COMM_WORLD.Get_rank()
-    
 
     output = False
-    if output_file != None:
+    if output_file is not None:
         output = True
-    
+
     isdir = False
-    if (os.path.isdir(inputdata):
+    if os.path.isdir(inputdata):
         isdir = True
         # get list of velocity h5 files
         h5_files = sorted(glob.glob(inputdata + '/Velocity2d*.h5'))
-        if (rank == 0):
+        if rank == 0:
             # if file does not exist, open and write the headers
             if os.path.exists(csv_output):
-                    csvfile = open(csv_output, 'a', newline='')
-                    writer = csv.writer(csvfile, delimiter=',',
-                                        quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                csvfile = open(csv_output, 'a', newline='', encoding="utf8")
+                writer = csv.writer(csvfile, delimiter=',',
+                                    quotechar='"', quoting=csv.QUOTE_MINIMAL)
             else:
-                    csvfile = open(csv_output, 'w', newline='')
-                    writer = csv.writer(csvfile, delimiter=',',
-                                        quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                    writer.writerow(["Index","L2_norm"])
+                csvfile = open(csv_output, 'w', newline='', encoding="utf8")
+                writer = csv.writer(csvfile, delimiter=',',
+                                    quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                writer.writerow(["Index","L2_norm"])
     else:
         # single file
         h5_files = [inputdata]
-    
+
     for input_file in h5_files:
 
         # work out the number of the output
-        head, tail = os.path.split(input_file)    
+        head, tail = os.path.split(input_file)
         p = re.compile(r'\d{5}')
         # need to post_process tail (the filename) to check if it's not part of a timestep
         m = p.search(tail)
@@ -93,22 +95,23 @@ def main():
             timestep = None
         if timestep < start_from:
             continue
-        
+
         if verbose:
-            PETSc.Sys.Print("loading file: ", input_file)  
+            PETSc.Sys.Print("loading file: ", input_file)
         func_name = ""
-        if ("Velocity2d" in tail):
+        if "Velocity2d" in tail:
             func_name = "uv_2d"
         else:
-            PETSc.Sys.Print("I can't read that file")  
+            PETSc.Sys.Print("I can't read that file")
 
         if output:
             # get output dir from the outputname
-            outputdir, outputfile = os.path.split(output_file)    
-            if (outputdir == ""):
+            outputdir, outputfile = os.path.split(output_file)
+            if outputdir == "":
                 outputdir = "."
             if verbose:
-                PETSc.Sys.Print("    saving "+func_name+" to "+output_file+" ts: "+str(timestep))
+                PETSc.Sys.Print("    saving "+func_name+
+                                " to "+output_file+" ts: "+str(timestep))
         with CheckpointFile(input_file, "r") as f:
             mesh2d = f.load_mesh()
             function = f.load_function(mesh2d,func_name)
@@ -120,17 +123,19 @@ def main():
             if output:
                 visu_space = exporter.get_visu_space(vorticity.function_space())
                 # create our exporter
-                e = exporter.VTKExporter(visu_space, "vorticity", outputdir, outputfile, next_export_ix=int(timestep))
+                e = exporter.VTKExporter(visu_space, "vorticity",
+                                         outputdir, outputfile,
+                                         next_export_ix=int(timestep))
                 e.set_next_export_ix(int(timestep))
                 e.export(vorticity)
             if (isdir and rank == 0):
                 writer.writerow([str(timestep), str(L2_norm)])
                 csvfile.flush()
 
-            del(vorticity)
+            del vorticity
             PETSc.garbage_cleanup(comm=f._comm)
             gc.collect()
-            del(L2_norm)
+            del L2_norm
 
 
 if __name__ == "__main__":
