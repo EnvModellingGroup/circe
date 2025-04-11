@@ -1,12 +1,13 @@
+import sys
 import csv
 
 def read_tide_gauge_data(tide_gauges):
 
     # read in tide gauge data, so let's do easiest to hardest...
-    # how long is the input? 
+    # how long is the input?
     tide_gauge_data = {}
     try:
-        with open(tide_gauges, 'r') as csvfile:
+        with open(tide_gauges, 'r', encoding="utf8") as csvfile:
             # need to read in a couple of lines, rather thana set of bytes
             # for sniffer to work properly
             temp_lines = csvfile.readline() + '\n' + csvfile.readline()
@@ -26,4 +27,4 @@ def read_tide_gauge_data(tide_gauges):
         print(tide_gauges[0])
         sys.exit(1)
 
-    return(tide_gauge_data)
+    return tide_gauge_data
