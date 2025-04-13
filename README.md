@@ -1,7 +1,7 @@
-circe
-=======
+# circe
 
-A modelling template for the EMRG thetis models.
+A modelling template for the [EMRG](https://envmodellinggroup.github.io/)
+[thetis](https://thetisproject.org/) models.
 
 [Circe is a Greek goddess, daughter of sun god Helios and Perse, 
 one of the three thousand Oceanid nymphs](https://en.wikipedia.org/wiki/Circe).
@@ -21,12 +21,12 @@ model, including tidal gauges, for example
 and analysis scripts.
 
 To use this, fork this repository on GitHub (or the command line and set your
-upstream correctly). You can then set options in the `sim/global\_options.py`
+upstream correctly). You can then set options in the `sim/global_options.py`
 file, such as your bathymetry data, mesh file, time step etc, as well as which 
 processes you want to enable.
 
-If you want to create a suite of runs, then copy the `base\_case`
-directory and in the params.py file there, edit any parameters from the `global\_params.py`
+If you want to create a suite of runs, then copy the `base_case`
+directory and in the params.py file there, edit any parameters from the `global_params.py`
 you wish to change.
 Alternatively, use the command line option `--param` to set a name-value pair. 
 
