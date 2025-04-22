@@ -8,6 +8,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.
 import params
 # for storm model import atmospheric_forcing only
 import atmospheric_forcing
+# for tsunami one way couple only
+import boundary_focring
+
 #timestepping options
 DT = 180 # reduce if solver does not converge
 T_EXPORT = params.output_time
@@ -36,7 +39,7 @@ chk = CheckpointFile('manning.h5', 'r')
 manning = chk.load_function(mesh2d, 'manning')
 chk.close()
 
-if model_type is tsunami:
+if model_type is tsunami_block:
     P1_2d = FunctionSpace(mesh2d, 'CG', 1)
 
 # function to set up the Coriolis force
@@ -56,7 +59,7 @@ def coriolis(mesh2d, lat, lon):
     return coriolis_2d
 
 # Set up extra things to export for tsunami only
-if model_type is tsunami:
+if model_type is tsunami_block:
     slide_height = Function(P1_2d, name="slide_height")         # Slide movement
     slide_height_file = File(OUTPUT_DIR + '/slide_height.pvd')
 
@@ -133,6 +136,8 @@ solverObj.bnd_functions['shallow_water'] = {
     params.forcing_boundary: {'elev': tidal_elev},
     #set closed boundaries to zero velocity
     1000: {'un': 0.0},
+
+	
 }
 ##TXPO
 data_dir = os.path.join(os.environ.get("DATA", "./data"), "tpxo")
@@ -153,9 +158,8 @@ if model_type is tsunami:
 else:
     solverObj.assign_initial_conditions(uv=Constant((1.0e-12,1.0e-12)))
 
-
 #work out our coords in lat/lon to save doing this every timestep.
-if not model_type is tsunami:
+if not model_type is tsunami_block or tsunami_oneway:
     mesh2d = tidal_elev.function_space().mesh()
     xvector = mesh2d.coordinates.dat.data
     llvector = []
@@ -163,14 +167,22 @@ if not model_type is tsunami:
         ll = params.utm.to_latlon(xy[0], xy[1], UTM_ZONE, UTM_BAND)
         llvector.append(ll)
 
+if model_type is tsunami_oneway:
+    tsunami_elev = Function(FunctionSpace(mesh2d, "CG", 1), name='tsunami_elev')
+    solverObj.bnd_functions['shallow_water'] = {
+        params.forcing_boundary: {'elev': tsunami_elev},
+        1000: {'un': 0.0},
+    }
+    solverObj.create_equations()
+
 def update_forcings(t):
   # Save extra functions to separate files every export time for storms
     if model_type is storm or storm_tides :
         if np.mod(t,T_EXPORT) == 0:
             tau_file.write(tau)
             pressure_file.write(pressure)
-#for tsunami models only
-    if model_type is tsunami:
+#for tsunami block models only
+    if model_type is tsunami_block:
         landslide_source = solverObj.timestepper.fields.get('volume_source')
         hs = (create_hs(t + options.timestep) - create_hs(t))/options.timestep
         landslide_source.project(hs)
@@ -180,12 +192,18 @@ def update_forcings(t):
         if np.mod(t,T_EXPORT) == 0:
             slide_height_file.write(slide_height.project(create_hs(t)))
 
+    if model_type is tsunami_oneway:
+        t += t_start
+        boundary_forcing.set_tsunami_field(tsunami_elev, t)
+        update_forcings(0.0)
+        solverObj.assign_initial_conditions(uv=Constant(("1e-7","0.0")), elev=Constant(0.))
+   
     with timed_stage('update forcings'):
         if model_type is tides:
             print_output("Updating tidal field at t={}".format(t))
         if model_type is storm or storm_tides:
             print_output("Updating tidal & atmos fields at t={}".format(t))
-    if not model_type is tsunami:
+    if not model_type is tsunami_block:
         tidal_forcing.set_tidal_field(tidal_elev, t, llvector)
     if model_type is storm or storm_tides:
         forcing.set_fields(T_START + t)
